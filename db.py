@@ -4,7 +4,6 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 Base = declarative_base()
 
-# Modelo de Usuario para el acceso
 class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True)
@@ -14,9 +13,10 @@ class User(Base):
 
 @st.cache_resource
 def get_engine():
-    """Crea el motor de base de datos con caché para evitar reconexiones constantes."""
+    """Mantiene la conexión viva y compartida."""
     if "DATABASE_URL" not in st.secrets:
-        raise RuntimeError("No se encontró DATABASE_URL en Secrets")
+        st.error("DATABASE_URL no encontrada en Secrets.")
+        st.stop()
     
     url = st.secrets["DATABASE_URL"]
     if url.startswith("postgres://"):
@@ -24,14 +24,13 @@ def get_engine():
     
     return create_engine(
         url,
-        pool_pre_ping=True,
-        pool_recycle=300,
-        pool_size=5,
-        max_overflow=10
+        pool_pre_ping=True,  # Verifica salud de conexión
+        pool_recycle=300,    # Refresca cada 5 min
+        pool_size=5
     )
 
 def init_db():
-    """Inicializa tablas y crea el admin inicial."""
+    """Inicializa tablas y crea admin por defecto."""
     engine = get_engine()
     Base.metadata.create_all(bind=engine)
     
@@ -46,6 +45,4 @@ def init_db():
         session.close()
 
 def get_session():
-    """Genera una sesión para consultas."""
-    engine = get_engine()
-    return sessionmaker(bind=engine)()
+    return sessionmaker(bind=get_engine())()
