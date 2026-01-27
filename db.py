@@ -1,29 +1,37 @@
 import streamlit as st
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-@st.cache_resource # <--- ESTO ES VITAL
+Base = declarative_base()
+
+@st.cache_resource
 def get_engine():
+    """Crea y cachea el motor de conexión a la base de datos."""
     if "DATABASE_URL" not in st.secrets:
         raise RuntimeError("DATABASE_URL no encontrada en Streamlit Secrets")
 
     database_url = st.secrets["DATABASE_URL"]
 
-    # Tip para Neon: Asegúrate de que la URL empiece con postgresql:// 
-    # y no solo postgres:// si usas SQLAlchemy 2.0
+    # Corrección de protocolo para SQLAlchemy 2.0
     if database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql://", 1)
 
-    engine = create_engine(
+    return create_engine(
         database_url,
-        pool_pre_ping=True,
-        pool_recycle=300,
-        pool_size=5,       # Limita las conexiones para no saturar Neon
+        pool_pre_ping=True,  # Verifica si la conexión está viva antes de usarla
+        pool_recycle=300,    # Reinicia conexiones cada 5 min para evitar cortes de Neon
+        pool_size=5,         # Límite de conexiones simultáneas
         max_overflow=10
     )
-    return engine
+
+def init_db():
+    """Crea las tablas si no existen."""
+    engine = get_engine()
+    # Importante: Asegúrate de importar tus modelos aquí o que estén en Base
+    Base.metadata.create_all(bind=engine)
 
 def get_session():
+    """Crea una nueva sesión de base de datos."""
     engine = get_engine()
     SessionLocal = sessionmaker(
         autocommit=False,
