@@ -1,5 +1,17 @@
-streamlit
-sqlalchemy
-pandas
-psycopg2-binary
-reportlab
+# Core
+streamlit>=1.30,<2.0
+
+# Database ORM
+sqlalchemy>=2.0,<3.0
+
+# PostgreSQL driver (Neon compatible)
+psycopg2-binary>=2.9,<3.0
+
+# Utils (fechas, validaciones)
+python-dateutil>=2.8
+
+# Data handling (Streamlit loves this)
+pandas>=1.5
+
+# Optional but recommended for performance
+greenlet>=2.0
