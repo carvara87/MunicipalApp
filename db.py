@@ -1,16 +1,13 @@
-import os
+import streamlit as st
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-def get_engine():
-    """
-    Crea el engine SOLO cuando se llama.
-    Evita crashes al iniciar Streamlit.
-    """
-    database_url = os.environ.get("DATABASE_URL")
 
-    if not database_url:
-        raise RuntimeError("❌ DATABASE_URL no está definida en Streamlit Secrets")
+def get_engine():
+    if "DATABASE_URL" not in st.secrets:
+        raise RuntimeError("DATABASE_URL no encontrada en Streamlit Secrets")
+
+    database_url = st.secrets["DATABASE_URL"]
 
     engine = create_engine(
         database_url,
@@ -22,9 +19,10 @@ def get_engine():
 
 
 def get_session():
-    """
-    Retorna una sesión lista para usar
-    """
     engine = get_engine()
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    SessionLocal = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=engine
+    )
     return SessionLocal()
