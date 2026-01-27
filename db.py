@@ -1,3 +1,4 @@
+# db.py
 from sqlalchemy import create_engine, Column, Integer, String, Date, Float, ForeignKey
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os
@@ -10,25 +11,16 @@ Base = declarative_base()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if DATABASE_URL:
-    if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+if not DATABASE_URL:
+    raise RuntimeError("❌ DATABASE_URL no está definida en Secrets")
 
-    ENGINE = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,
-        pool_recycle=300,
-        connect_args={"connect_timeout": 5}
-    )
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    DB_PATH = os.path.join(BASE_DIR, "municipal_pa.db")
-    ENGINE = create_engine(
-        f"sqlite:///{DB_PATH}",
-        connect_args={"check_same_thread": False}
-    )
+ENGINE = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=300,
+)
 
-SessionLocal = sessionmaker(bind=ENGINE)
+SessionLocal = sessionmaker(bind=ENGINE, autoflush=False, autocommit=False)
 
 # ===============================
 # MODELOS
