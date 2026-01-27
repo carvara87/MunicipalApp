@@ -1,16 +1,19 @@
 import streamlit as st
-from db import init_db, get_session, User
+from db import init_db, get_session
+# Asegúrate de que tus modelos (User, etc.) estén importados desde donde los definas
+# from models import User 
+
+# Importaciones de tus módulos
 from jugadores import mostrar_planilla, inscripcion_nueva, edicion_eliminacion
 from eventos import cobros_camisetas
 from reportes import caja_reportes, historial_jugador
 from cantina import gestionar_productos, registrar_ventas
 from perfiles import configurar_perfiles
 
-# 1. CONFIGURACIÓN DE PÁGINA (SIEMPRE PRIMERO)
+# 1. CONFIGURACIÓN DE PÁGINA (ESTRICTAMENTE PRIMERO)
 st.set_page_config(page_title="Municipal PA - Pro", layout="centered")
 
 # 2. INICIALIZACIÓN CONTROLADA DE DB
-# Usamos un flag en session_state para no re-intentar init_db en cada rerun
 if "db_initialized" not in st.session_state:
     try:
         init_db()
@@ -28,7 +31,7 @@ if "font_size" not in st.session_state:
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
-# Aplicar CSS
+# Aplicar Estilos
 st.markdown(f"""
     <style>
     .main {{ font-size: {st.session_state.font_size}; }}
@@ -43,10 +46,12 @@ if not st.session_state.logged_in:
         pass_input = st.text_input("Contraseña", type="password")
         
         if st.form_submit_button("Entrar"):
-            # Usamos un bloque try para manejar errores de sesión
             try:
+                # Importamos User aquí si es necesario para evitar importaciones circulares
+                from db import User 
                 session = get_session()
                 user = session.query(User).filter_by(username=user_input, password=pass_input).first()
+                
                 if user:
                     st.session_state.logged_in = True
                     st.session_state.username = user.username
@@ -57,27 +62,23 @@ if not st.session_state.logged_in:
                     st.error("Usuario o contraseña incorrectos")
                     session.close()
             except Exception as e:
-                st.error("Error al consultar usuario. Verifica la conexión.")
+                st.error("Error al conectar con la base de datos para el login.")
+                st.exception(e)
                 
     st.info("Nota: Si es la primera vez, el usuario es 'admin' y la clave 'admin123'")
     st.stop()
 
-# --- INTERFAZ PRINCIPAL ---
+# --- INTERFAZ PRINCIPAL (Solo si está logueado) ---
 st.title(f"🏆 Municipal PA - {st.session_state.username.capitalize()}")
 
 with st.sidebar:
     st.header("⚙️ Configuración")
-    theme_options = ["Claro", "Oscuro"]
-    theme_idx = 0 if st.session_state.theme == "light" else 1
-    theme_choice = st.selectbox("Tema", theme_options, index=theme_idx)
-    st.session_state.theme = "light" if theme_choice == "Claro" else "dark"
+    theme = st.selectbox("Tema", ["Claro", "Oscuro"], index=0 if st.session_state.theme == "light" else 1)
+    st.session_state.theme = "light" if theme == "Claro" else "dark"
     
-    font_options = ["Chico", "Mediano", "Grande"]
-    font_idx = 1 # Default mediano
-    font_choice = st.selectbox("Tamaño de Fuente", font_options, index=font_idx)
-    st.session_state.font_size = {"Chico": "small", "Mediano": "medium", "Grande": "large"}[font_choice]
+    font_size = st.selectbox("Tamaño de Fuente", ["Chico", "Mediano", "Grande"], index=1)
+    st.session_state.font_size = {"Chico": "small", "Mediano": "medium", "Grande": "large"}[font_size]
     
-    st.divider()
     if st.button("Cerrar Sesión", use_container_width=True):
         st.session_state.logged_in = False
         st.rerun()
@@ -98,7 +99,7 @@ if st.session_state.role == 'admin':
 
 menu = st.selectbox("Seleccione una opción:", menu_options)
 
-# --- LÓGICA DE MÓDULOS (Envueltos para evitar crashes globales) ---
+# --- LÓGICA DE MÓDULOS ---
 try:
     if menu == "📋 Planilla y Control Edad":
         mostrar_planilla()
@@ -108,12 +109,12 @@ try:
         if st.session_state.role == 'admin':
             inscripcion_nueva()
         else:
-            st.warning("Acceso restringido: Solo administradores.")
+            st.warning("Acceso restringido.")
     elif menu == "✏️ Edición y Eliminación":
         if st.session_state.role == 'admin':
             edicion_eliminacion()
         else:
-            st.warning("Acceso restringido: Solo administradores.")
+            st.warning("Acceso restringido.")
     elif menu == "📊 Caja y Reportes":
         caja_reportes()
     elif menu == "📜 Historial por Jugador":
@@ -121,14 +122,12 @@ try:
     elif menu == "🔧 Configurar Perfiles":
         configurar_perfiles()
     elif menu == "🍻 Cantina":
-        submenu = st.selectbox("Operación de Cantina:", ["Registrar Venta", "Gestionar Productos"])
+        submenu = st.selectbox("Operación:", ["Registrar Venta", "Gestionar Productos"])
         if submenu == "Gestionar Productos":
-            if st.session_state.role == 'admin':
-                gestionar_productos()
-            else:
-                st.warning("Solo administradores pueden gestionar stock.")
+            if st.session_state.role == 'admin': gestionar_productos()
+            else: st.warning("Solo administradores.")
         else:
             registrar_ventas()
 except Exception as e:
-    st.error(f"Hubo un problema al cargar el módulo {menu}")
+    st.error(f"Error en el módulo {menu}")
     st.exception(e)
