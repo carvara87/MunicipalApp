@@ -1,5 +1,6 @@
 # app.py
 import streamlit as st
+import os
 
 from db import init_db, get_session, User
 from jugadores import mostrar_planilla, inscripcion_nueva, edicion_eliminacion
@@ -8,46 +9,50 @@ from reportes import caja_reportes, historial_jugador
 from cantina import gestionar_productos, registrar_ventas
 from perfiles import configurar_perfiles
 
-
 # ===============================
 # CONFIGURACIÓN STREAMLIT
 # ===============================
+
 st.set_page_config(
     page_title="Municipal PA - Pro",
     layout="centered"
 )
 
-
 # ===============================
-# INICIALIZACIÓN DB (CLOUD SAFE)
+# VALIDACIÓN DE SECRETS
 # ===============================
-@st.cache_resource
-def init_database():
-    init_db()
 
-try:
-    init_database()
-except Exception as e:
-    st.error(f"❌ Error al conectar con la base de datos: {e}")
+if not os.getenv("DATABASE_URL"):
+    st.error("❌ DATABASE_URL no configurada en Secrets")
     st.stop()
 
+# ===============================
+# INICIALIZACIÓN DB (SIN CACHE)
+# ===============================
+
+try:
+    init_db()
+except Exception as e:
+    st.error(f"❌ Error al inicializar la base de datos: {e}")
+    st.stop()
 
 # ===============================
 # ESTADO GLOBAL
 # ===============================
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
 if "theme" not in st.session_state:
     st.session_state.theme = "light"
 
 if "font_size" not in st.session_state:
     st.session_state.font_size = "medium"
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-
 # ===============================
 # ESTILOS
 # ===============================
+
 st.markdown(
     f"""
     <style>
@@ -59,10 +64,10 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-
 # ===============================
 # LOGIN
 # ===============================
+
 if not st.session_state.logged_in:
     st.title("⚽ Municipal PA - Acceso")
 
@@ -72,13 +77,15 @@ if not st.session_state.logged_in:
         submit = st.form_submit_button("Entrar")
 
         if submit:
-            session = get_session()
-            user = (
-                session.query(User)
-                .filter_by(username=user_input, password=pass_input)
-                .first()
-            )
-            session.close()
+            try:
+                session = get_session()
+                user = (
+                    session.query(User)
+                    .filter_by(username=user_input, password=pass_input)
+                    .first()
+                )
+            finally:
+                session.close()
 
             if user:
                 st.session_state.logged_in = True
@@ -91,16 +98,16 @@ if not st.session_state.logged_in:
     st.info("Usuario inicial: **admin** | Clave: **admin123**")
     st.stop()
 
-
 # ===============================
 # INTERFAZ PRINCIPAL
 # ===============================
-st.title(f"🏆 Municipal PA - {st.session_state.username.capitalize()}")
 
+st.title(f"🏆 Municipal PA - {st.session_state.username.capitalize()}")
 
 # ===============================
 # SIDEBAR
 # ===============================
+
 with st.sidebar:
     st.header("⚙️ Configuración")
 
@@ -126,10 +133,10 @@ with st.sidebar:
         st.session_state.logged_in = False
         st.rerun()
 
-
 # ===============================
 # MENÚ
 # ===============================
+
 menu_options = [
     "📋 Planilla y Control Edad",
     "🏟️ Cobros y Camisetas",
@@ -145,10 +152,10 @@ if st.session_state.role == "admin":
 
 menu = st.selectbox("Seleccione una opción:", menu_options)
 
-
 # ===============================
 # CONTENIDO
 # ===============================
+
 if menu == "📋 Planilla y Control Edad":
     mostrar_planilla()
 
